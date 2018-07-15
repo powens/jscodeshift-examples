@@ -1,5 +1,4 @@
 const foo = 'Hello';
-
 const bar = 'World';
 
 const baz = (a, b, c) => {

@@ -1,4 +1,6 @@
-
+/**
+ * Removes all debugger statements
+ */
 module.exports = function(file, api) {
   const j = api.jscodeshift;
 

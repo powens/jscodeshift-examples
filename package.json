@@ -1,5 +1,6 @@
 {
   "name": "padraig-io-blog-jscodeshift",
+  "author": "Patrick Owens",
   "version": "0.0.1",
   "description": "A collection of samples to go with the blog post",
   "license": "MIT",

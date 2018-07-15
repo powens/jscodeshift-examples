@@ -1,7 +1,5 @@
 const foo = 'Hello';
-
 debugger;
-
 const bar = 'World';
 
 const baz = (a, b, c) => {
