@@ -1,3 +1,4 @@
+// Based on props-to-destructuring.js from https://github.com/jhgg/js-transforms/blob/master/props-to-destructuring.js
 /**
  * Transforms:
  * class C extends React.Component() {
@@ -36,9 +37,8 @@ module.exports = function (file, api, options) {
   const j = api.jscodeshift;
   const {statement} = j.template;
 
-  return j(file.source)
-    .find(j.FunctionExpression)
-    .replaceWith(p => {
+  const fixMemberType = memberType => {
+    return p => {
       console.log(p);
       const root = j(p.value);
       const variablesToReplace = {};
@@ -46,47 +46,47 @@ module.exports = function (file, api, options) {
       // Figure out if the variable was defined from props, so that we can re-use that definition.
       const isFromProps = (name, resolvedScope) => {
         return resolvedScope.getBindings()[name].every(
-            p => {
+          p => {
             const decl = j(p).closest(j.VariableDeclarator);
-              // What happens when our VariableDeclarator is too high up the parent AST?
+            // What happens when our VariableDeclarator is too high up the parent AST?
 
-            if (!decl.size()) return false;
+            if (!decl.size()) {
+              return false;
+            }
             const node = decl.nodes()[0];
 
-            if (!(node.init.type == 'MemberExpression' &&
-              node.init.object.type == 'ThisExpression' &&
-              node.init.property.name == 'props'))
+            if (!(node.init.type === 'MemberExpression' &&
+              node.init.object.type === 'ThisExpression' &&
+              node.init.property.name === memberType)) {
               return false;
+            }
 
-            // Check for the case where it could be aliased (i.e.) { baz: foo } = this.props;
+            // Check for the case where it could be aliased (i.e.) { baz: foo } = this[memberType];
             // In this case, we won't do a substitution.
-            if (p.parentPath.value.type == 'Property' && p.parentPath.value.key.name !== name)
-              return false;
-
-            return true;
+            return !(p.parentPath.value.type === 'Property' && p.parentPath.value.key.name !== name);
           }
         );
       };
 
-      // Transform "this.props.xyz" to "xyz", and record what we've transformed.
+      // Transform "this[memberType].xyz" to "xyz", and record what we've transformed.
       // Transform as long as we don't have "xyz" already defined in the scope.
       root
         .find(j.MemberExpression, {
           object: {
             type: 'MemberExpression',
-            object: {type: 'ThisExpression'},
-            property: {name: 'props'}
+            object: { type: 'ThisExpression' },
+            property: { name: memberType }
           }
         })
         .filter(e => {
           const resolvedScope = e.scope.lookup(e.value.property.name);
           // If the scope is null, that means that this property isn't defined in the scope yet,
-          // and we can use it. Otherwise, if it is defined, we should see if it was defined from `this.props`
+          // and we can use it. Otherwise, if it is defined, we should see if it was defined from `this[memberType]`
           // if none of these cases are true, we can't do substitution.
           return resolvedScope == null || isFromProps(e.value.property.name, resolvedScope);
         })
-        // Ensure that our substitution won't cause us to define a keyword, i.e. `this.props.while` won't
-        // get converted into `while`. 
+        // Ensure that our substitution won't cause us to define a keyword, i.e. `this[memberType].while` won't
+        // get converted into `while`.
         .filter(p => !isKeyword(p.value.property.name))
         // Now, do the replacement, `this.props.xyz` => `xyz`.
         .replaceWith(p => p.value.property)
@@ -94,8 +94,9 @@ module.exports = function (file, api, options) {
         // if it's not already defined.
         .forEach(p => {
           // Is this prop already defined somewhere else.
-          if (!p.scope.lookup(p.value.name))
+          if (!p.scope.lookup(p.value.name)) {
             variablesToReplace[p.value.name] = true;
+          }
         });
 
 
@@ -109,14 +110,15 @@ module.exports = function (file, api, options) {
         });
 
       // We have no properties to inject, so we can bail here.
-      if (!properties.length)
+      if (!properties.length) {
         return p.value;
+      }
 
-      // See if we already have a VariableDeclarator like { a, b, c } = this.props;
+      // See if we already have a VariableDeclarator like { a, b, c } = this[memberType];
       const propDefinitions = root
         .find(j.VariableDeclarator, {
           id: {type: 'ObjectPattern'},
-          init: {type: 'MemberExpression', object: {type: 'ThisExpression'}, property: {name: 'props'}}
+          init: {type: 'MemberExpression', object: {type: 'ThisExpression'}, property: {name: memberType}}
         });
 
       if (propDefinitions.size()) {
@@ -128,8 +130,8 @@ module.exports = function (file, api, options) {
       }
 
       // Otherwise, we'll have to create our own, as none were suitable for use.
-      // Create the variable definition `const { xyz } = this.props;`
-      const decl = statement`const { ${properties} } = this.props;`;
+      // Create the variable definition `const { xyz } = this[memberType];`
+      const decl = statement`const { ${properties} } = this.${memberType};\n`;
 
       // Add the variable definition to the top of the function expression body.
       return j.functionExpression(
@@ -138,5 +140,12 @@ module.exports = function (file, api, options) {
         j.blockStatement([decl].concat(p.value.body.body))
       );
     }
-  ).toSource(printOptions);
+  };
+
+  return j(file.source)
+    .find(j.FunctionExpression)
+    .replaceWith(fixMemberType('context'))
+    .replaceWith(fixMemberType('state'))
+    .replaceWith(fixMemberType('props'))
+    .toSource(printOptions);
 };
