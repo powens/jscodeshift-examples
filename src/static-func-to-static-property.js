@@ -9,8 +9,6 @@ export default function transformer(file, api, options) {
     lineTerminator: '\n',
   };
 
-  const root = j(file.source);
-
   const isStaticGet = path => (
     path.node.static && path.node.kind === 'get'
   );
@@ -25,10 +23,9 @@ export default function transformer(file, api, options) {
     return out;
   };
 
-  root
+  return j(file.source)
     .find(j.MethodDefinition)
     .filter(isStaticGet)
-    .replaceWith(getReturnStatement);
-
-  return root.toSource(printOptions);
+    .replaceWith(getReturnStatement)
+    .toSource(printOptions);
 }
