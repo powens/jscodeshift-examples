@@ -77,7 +77,6 @@ function getIntlContextType(j, root) {
 }
 
 function replaceIntlContextType(j, intlContextType) {
-  console.log(intlContextType);
   intlContextType.replaceWith(
     j.identifier('intlShape')
   );
@@ -95,7 +94,7 @@ module.exports = function(file, api, options) {
   const root = j(file.source);
 
   const intlContextType = getIntlContextType(j, root);
-  const hasIntlInContextType = intlContextType.size() > 0;
+  const hasIntlInContextType = intlContextType && intlContextType.size() > 0;
 
   if (hasIntlInContextType) {
     addReactIntlImport(j, root);

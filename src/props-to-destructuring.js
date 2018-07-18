@@ -39,7 +39,6 @@ module.exports = function (file, api, options) {
 
   const fixMemberType = memberType => {
     return p => {
-      console.log(p);
       const root = j(p.value);
       const variablesToReplace = {};
 
