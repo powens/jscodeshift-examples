@@ -3,16 +3,15 @@ import React from 'react';
 class MyComponent {
   nameCollision(nextProps) {
     const { name } = nextProps;
-    const { name: name2 } = this.props;
-    if (name2 === name) {
+    if (this.props.name === name) {
       return true;
     }
     return false;
   }
 
   asAFunction() {
-    const { isOpen } = this.state;
     const { doOpenThing } = this.props;
+    const { isOpen } = this.state;
     const { doCloseThing } = this.context;
     if (isOpen) {
       doOpenThing();
@@ -22,18 +21,22 @@ class MyComponent {
   }
 
   nestedContextThing() {
-    const { intl: { messages } } = this.context;
+    const { intl } = this.context;
+    const { messages } = intl;
     return messages['foobar'];
   }
 
   addToExisting() {
-    const { isOpen, foobar } = this.state;
+    const {
+      isOpen,
+      foobar,
+    } = this.state;
     return foobar;
   }
 
   render() {
-    const { isOpen } = this.state;
     const { name } = this.props;
+    const { isOpen } = this.state;
     const { foo } = this.context;
     return (
       <div>
@@ -41,7 +44,7 @@ class MyComponent {
         <div>{name}</div>
         <div>{foo}</div>
       </div>
-    )
+    );
   }
 }
 
